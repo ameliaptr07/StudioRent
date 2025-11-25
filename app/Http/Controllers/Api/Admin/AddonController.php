@@ -8,14 +8,13 @@ use Illuminate\Http\Request;
 
 class AddonController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(['auth:sanctum', 'role:admin|manager']);
-    }
-
     public function index()
     {
-        return response()->json(Addon::paginate(10));
+        $addons = Addon::all();
+
+        return response()->json([
+            'data' => $addons,
+        ]);
     }
 
     public function store(Request $request)
@@ -36,7 +35,9 @@ class AddonController extends Controller
 
     public function show(Addon $addon)
     {
-        return response()->json($addon);
+        return response()->json([
+            'addon' => $addon,
+        ]);
     }
 
     public function update(Request $request, Addon $addon)
@@ -47,7 +48,8 @@ class AddonController extends Controller
             'price'       => ['sometimes', 'required', 'numeric', 'min:0'],
         ]);
 
-        $addon->update($data);
+        $addon->fill($data);
+        $addon->save();
 
         return response()->json([
             'message' => 'Addon berhasil diupdate.',

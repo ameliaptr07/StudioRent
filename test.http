@@ -1,0 +1,219 @@
+########################################################
+# STUDIO (contoh dasar, kalau mau tes dulu)
+########################################################
+
+### [STUDIO] Tambah Studio Baru
+POST http://127.0.0.1:8000/api/admin/studios
+Content-Type: application/json
+
+{
+  "name": "Studio Podcast A",
+  "description": "Studio podcast kedap suara untuk 4 orang",
+  "capacity": 4,
+  "price_per_hour": 250000
+}
+
+### [STUDIO] Lihat Semua Studio
+GET http://127.0.0.1:8000/api/studios
+
+### [STUDIO] Lihat Detail Studio ID 1
+GET http://127.0.0.1:8000/api/studios/1
+
+### [STUDIO] Update Studio ID 1
+PATCH http://127.0.0.1:8000/api/admin/studios/1
+Content-Type: application/json
+
+{
+  "name": "Studio Podcast A (Revisi)",
+  "description": "Update deskripsi studio",
+  "capacity": 5,
+  "price_per_hour": 300000
+}
+
+### [STUDIO] Hapus Studio ID 1
+DELETE http://127.0.0.1:8000/api/admin/studios/1
+
+
+
+########################################################
+# ADDON – CRUD
+# Tabel: addons (id, name, description, price)
+# Route: /api/admin/addons
+########################################################
+
+### [ADDON] Tambah Addon Baru
+POST http://127.0.0.1:8000/api/admin/addons
+Content-Type: application/json
+
+{
+  "name": "Mic Tambahan",
+  "description": "Mic condenser tambahan untuk tamu",
+  "price": 50000
+}
+
+### [ADDON] Lihat Semua Addon
+GET http://127.0.0.1:8000/api/admin/addons
+
+### [ADDON] Lihat Detail Addon ID 1
+GET http://127.0.0.1:8000/api/admin/addons/1
+
+### [ADDON] Update Addon ID 1
+PATCH http://127.0.0.1:8000/api/admin/addons/1
+Content-Type: application/json
+
+{
+  "name": "Mic Tambahan Premium",
+  "description": "Mic condenser dengan kualitas lebih baik",
+  "price": 75000
+}
+
+### [ADDON] Hapus Addon ID 1
+DELETE http://127.0.0.1:8000/api/admin/addons/1
+
+
+
+########################################################
+# FEATURE – CRUD
+# Tabel: features (id, feature_name)
+# Route: /api/admin/features
+########################################################
+
+### [FEATURE] Tambah Feature Baru
+POST http://127.0.0.1:8000/api/admin/features
+Content-Type: application/json
+
+{
+  "feature_name": "Soundproof"
+}
+
+### [FEATURE] Lihat Semua Feature
+GET http://127.0.0.1:8000/api/admin/features
+
+### [FEATURE] Lihat Detail Feature ID 1
+GET http://127.0.0.1:8000/api/admin/features/1
+
+### [FEATURE] Update Feature ID 1
+PATCH http://127.0.0.1:8000/api/admin/features/1
+Content-Type: application/json
+
+{
+  "feature_name": "Full Soundproof + Acoustic Panel"
+}
+
+### [FEATURE] Hapus Feature ID 1
+DELETE http://127.0.0.1:8000/api/admin/features/1
+
+
+
+########################################################
+# RESERVATION / BOOKING
+# Route utama:
+# - POST  /api/reservations          -> buat booking
+# - GET   /api/me/reservations       -> booking milik user login
+# - GET   /api/reservations          -> semua booking (admin)
+########################################################
+
+### [BOOKING] Lihat Semua Reservasi (Admin)
+GET http://127.0.0.1:8000/api/reservations
+
+### [BOOKING] Lihat semua reservasi yang ada
+GET http://127.0.0.1:8000/api/reservations
+Accept: application/json
+
+########################################################
+# BOOKING – SCENARIO 1:
+# BUAT RESERVASI NORMAL (HARUSNYA BERHASIL)
+########################################################
+
+### [BOOKING] Buat Reservasi Studio ID 1 (sukses)
+POST http://127.0.0.1:8000/api/reservations
+Accept: application/json
+Content-Type: application/json
+
+{
+  "studio_id": 1,
+  "start_time": "2025-11-26 10:00:00",
+  "end_time":   "2025-11-26 11:30:00",
+  "addons": {
+    "1": 2
+  }
+}
+
+
+# Catatan:
+# - Durasi 10:00–11:30 = 90 menit (minimal).
+# - Ganti "studio_id" & addon sesuai data di database kamu.
+# - Setelah request ini jalan, ambil "id" reservasi dari response
+#   untuk dipakai di bagian CANCEL & CHECK-IN di bawah.
+
+########################################################
+# BOOKING – SCENARIO 2:
+# COBA RESERVASI BENTROK (HARUS KENA VALIDASI)
+########################################################
+
+### [BOOKING] Buat Reservasi yang BENTROK dengan jadwal di atas
+# Karena overlap dengan 10:00–11:30 dan ada buffer 15 menit,
+# request ini seharusnya diblok (HTTP 422) oleh ReservationService.
+POST http://127.0.0.1:8000/api/reservations
+Accept: application/json
+Content-Type: application/json
+
+{
+  "studio_id": 1,
+  "start_time": "2025-11-26 10:30:00",
+  "end_time":   "2025-11-26 12:00:00",
+  "addons": {
+    "1": 1
+  }
+}
+
+
+
+########################################################
+# BOOKING – UPDATE RESERVASI (UBAH JAM & ADDONS)
+########################################################
+
+### [BOOKING] Update Reservasi ID 1
+# GANTI "1" dengan ID reservasi yang valid dari response sebelumnya.
+PATCH http://127.0.0.1:8000/api/reservations/1
+Content-Type: application/json
+
+{
+  "start_time": "2025-11-26 12:00:00",
+  "end_time":   "2025-11-26 13:30:00",
+  "addons": {
+    "1": 1,
+    "2": 0
+  }
+}
+
+
+
+########################################################
+# CANCEL & CHECK-IN
+# Route:
+# - PATCH /api/reservations/{id}/cancel
+# - POST  /api/reservations/{id}/checkin   (body: { "code": "..." })
+########################################################
+
+### [BOOKING] Cancel Reservasi ID 1
+# Hanya owner reservasi / admin / manager yang boleh cancel.
+PATCH http://127.0.0.1:8000/api/reservations/1/cancel
+
+### [BOOKING] Check-in Reservasi ID 1
+# "code" di bawah harus diisi dari field "checkin_code"
+# yang kamu lihat di response saat pertama kali create reservasi.
+POST http://127.0.0.1:8000/api/reservations/1/checkin
+Accept: application/json
+Content-Type: application/json
+
+{
+  "code": "CHK-6925a1627600d"
+}
+
+########################################################
+# HARD DELETE RESERVASI (OPSIONAL – UNTUK ADMIN)
+########################################################
+
+### [BOOKING] Hapus Reservasi ID 1 (Hard Delete)
+DELETE http://127.0.0.1:8000/api/reservations/1

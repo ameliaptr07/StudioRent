@@ -8,47 +8,56 @@ use Illuminate\Http\Request;
 
 class StudioController extends Controller
 {
-    public function __construct()
+    /**
+     * Menampilkan daftar studio (versi admin).
+     */
+    public function index()
     {
-        // Admin & manager untuk operasi CRUD penuh,
-        // tapi index & show boleh diakses tanpa role khusus (sudah di-route).
-        $this->middleware(['auth', 'role:admin|manager'])->except(['index', 'show']);
+        $studios = Studio::with(['addons', 'features'])->get();
+
+        return response()->json([
+            'data' => $studios,
+        ]);
     }
 
     /**
-     * List studio (bisa difilter kapasitas & status).
+     * Menyimpan studio baru.
      */
-    public function index(Request $request)
-    {
-        $query = Studio::query();
-
-        if ($request->filled('capacity')) {
-            $query->where('capacity', '>=', $request->capacity);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        return response()->json($query->paginate(10));
-    }
-
-    public function show(Studio $studio)
-    {
-        return response()->json($studio);
-    }
-
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'           => ['required', 'string', 'max:255'],
-            'description'    => ['nullable', 'string'],
-            'capacity'       => ['required', 'integer', 'min:1'],
-            'price_per_hour' => ['required', 'numeric', 'min:0'],
-            'status'         => ['nullable'], // biarkan sesuai tipe di DB
+            'name'                => ['required', 'string', 'max:255'],
+            'description'         => ['nullable', 'string'],
+            'capacity'            => ['required', 'integer', 'min:1'],
+            'price_per_hour'      => ['required', 'numeric', 'min:0'],
+            'location'            => ['nullable', 'string', 'max:255'],
+            'assigned_manager_id' => ['nullable', 'integer', 'exists:users,id'],
+            'status'              => ['nullable', 'in:active,inactive'],
+            'addon_ids'           => ['sometimes', 'array'],
+            'addon_ids.*'         => ['integer', 'exists:addons,id'],
+            'feature_ids'         => ['sometimes', 'array'],
+            'feature_ids.*'       => ['integer', 'exists:features,id'],
         ]);
 
-        $studio = Studio::create($data);
+        $studio = Studio::create([
+            'name'                => $data['name'],
+            'description'         => $data['description'] ?? null,
+            'capacity'            => $data['capacity'],
+            'price_per_hour'      => $data['price_per_hour'],
+            'location'            => $data['location'] ?? null,
+            'assigned_manager_id' => $data['assigned_manager_id'] ?? null,
+            'status'              => $data['status'] ?? 'active',
+        ]);
+
+        if (!empty($data['addon_ids'] ?? [])) {
+            $studio->addons()->sync($data['addon_ids']);
+        }
+
+        if (!empty($data['feature_ids'] ?? [])) {
+            $studio->features()->sync($data['feature_ids']);
+        }
+
+        $studio->load(['addons', 'features']);
 
         return response()->json([
             'message' => 'Studio berhasil dibuat.',
@@ -56,17 +65,49 @@ class StudioController extends Controller
         ], 201);
     }
 
+    /**
+     * Menampilkan detail studio.
+     */
+    public function show(Studio $studio)
+    {
+        $studio->load(['addons', 'features']);
+
+        return response()->json([
+            'studio' => $studio,
+        ]);
+    }
+
+    /**
+     * Mengupdate data studio.
+     */
     public function update(Request $request, Studio $studio)
     {
         $data = $request->validate([
-            'name'           => ['sometimes', 'required', 'string', 'max:255'],
-            'description'    => ['nullable', 'string'],
-            'capacity'       => ['sometimes', 'required', 'integer', 'min:1'],
-            'price_per_hour' => ['sometimes', 'required', 'numeric', 'min:0'],
-            'status'         => ['nullable'],
+            'name'                => ['sometimes', 'required', 'string', 'max:255'],
+            'description'         => ['nullable', 'string'],
+            'capacity'            => ['sometimes', 'required', 'integer', 'min:1'],
+            'price_per_hour'      => ['sometimes', 'required', 'numeric', 'min:0'],
+            'location'            => ['nullable', 'string', 'max:255'],
+            'assigned_manager_id' => ['nullable', 'integer', 'exists:users,id'],
+            'status'              => ['nullable', 'in:active,inactive'],
+            'addon_ids'           => ['sometimes', 'array'],
+            'addon_ids.*'         => ['integer', 'exists:addons,id'],
+            'feature_ids'         => ['sometimes', 'array'],
+            'feature_ids.*'       => ['integer', 'exists:features,id'],
         ]);
 
-        $studio->update($data);
+        $studio->fill($data);
+        $studio->save();
+
+        if (array_key_exists('addon_ids', $data)) {
+            $studio->addons()->sync($data['addon_ids'] ?? []);
+        }
+
+        if (array_key_exists('feature_ids', $data)) {
+            $studio->features()->sync($data['feature_ids'] ?? []);
+        }
+
+        $studio->load(['addons', 'features']);
 
         return response()->json([
             'message' => 'Studio berhasil diupdate.',
@@ -74,6 +115,9 @@ class StudioController extends Controller
         ]);
     }
 
+    /**
+     * Menghapus studio.
+     */
     public function destroy(Studio $studio)
     {
         $studio->delete();

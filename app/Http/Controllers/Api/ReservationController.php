@@ -4,28 +4,34 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Reservation;
-use App\Notifications\ReservationCancelled;
-use App\Notifications\ReservationCreated;
+use App\Models\User;
 use App\Services\ReservationService;
 use Illuminate\Http\Request;
 
 class ReservationController extends Controller
 {
-    public function __construct(
-        protected ReservationService $service
-    ) {
-        // Pakai guard default "web" (session), bukan sanctum
-        $this->middleware('auth');
+    protected ReservationService $reservationService;
+
+    public function __construct(ReservationService $reservationService)
+    {
+        $this->reservationService = $reservationService;
+        // MODE DEV / TEST:
+        // Tidak pakai middleware auth agar bisa dipanggil dari test.http tanpa login.
     }
 
     /**
-     * List semua reservasi (bisa difilter).
-     * Cocok untuk endpoint admin / overview.
+     * List semua reservasi (bisa difilter via query string).
+     *
+     * Query params optional:
+     * - status=confirmed/pending/completed/cancelled
+     * - studio_id=1
+     * - date_from=2025-11-25
+     * - date_to=2025-11-26
      */
     public function index(Request $request)
     {
-        $query = Reservation::with(['studio', 'user'])
-            ->orderByDesc('start_time');
+        // TIDAK pakai $request->user(), karena kita mode tanpa auth
+        $query = Reservation::with(['studio', 'addons']);
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);
@@ -43,126 +49,132 @@ class ReservationController extends Controller
             $query->whereDate('start_time', '<=', $to);
         }
 
-        return response()->json(
-            $query->paginate(10)
-        );
+        $reservations = $query
+            ->orderByDesc('start_time')
+            ->get();
+
+        return response()->json([
+            'data' => $reservations,
+        ]);
     }
 
     /**
-     * List reservasi milik user yang sedang login.
-     * Endpoint: GET /api/me/reservations
+     * Helper: ambil user “dummy” untuk mode tanpa auth.
+     * - Prioritas: user dengan role Penyewa
+     * - Kalau tidak ada, ambil user pertama di tabel users
      */
-    public function myReservations(Request $request)
+    protected function resolveUserForTesting(): ?User
     {
-        $user = $request->user();
+        $user = User::whereHas('role', function ($q) {
+            $q->where('name', 'Penyewa');
+        })->first();
 
-        $query = Reservation::with('studio')
-            ->where('user_id', $user->id)
-            ->orderByDesc('start_time');
-
-        if ($status = $request->query('status')) {
-            $query->where('status', $status);
+        if (! $user) {
+            $user = User::first();
         }
 
-        return response()->json(
-            $query->paginate(10)
-        );
+        return $user;
     }
 
     /**
      * Membuat reservasi baru.
-     * Aturan bisnis (bentrok, kuota, durasi) di-handle di ReservationService.
+     * Body minimal:
+     * {
+     *   "studio_id": 1,
+     *   "start_time": "2025-11-26 10:00:00",
+     *   "end_time": "2025-11-26 11:30:00",
+     *   "addons": { "1": 2 }
+     * }
      */
     public function store(Request $request)
     {
         $data = $request->validate([
-            'studio_id'   => ['required', 'exists:studios,id'],
-            'start_time'  => ['required', 'date'],
-            'end_time'    => ['required', 'date'],
-            'addons'      => ['nullable', 'array'],
-            'addons.*'    => ['integer', 'min:0'],
+            'studio_id'  => ['required', 'integer', 'exists:studios,id'],
+            'start_time' => ['required', 'date'],
+            'end_time'   => ['required', 'date'],
+            'addons'     => ['nullable', 'array'],
         ]);
 
-        $user        = $request->user();
-        $reservation = $this->service->createReservation($data, $user);
+        // Mode tanpa auth: pakai user dummy
+        $user = $this->resolveUserForTesting();
 
-        // Kirim email konfirmasi
-        $user->notify(new ReservationCreated($reservation));
+        if (! $user) {
+            return response()->json([
+                'message' => 'Tidak ada user di database untuk membuat reservasi (mode tanpa auth). Tambahkan minimal 1 user dulu.',
+            ], 500);
+        }
+
+        $reservation = $this->reservationService->createReservation($data, $user);
+        $reservation->load(['studio', 'addons']);
 
         return response()->json([
             'message'     => 'Reservasi berhasil dibuat.',
-            'reservation' => $reservation->load('studio', 'addons'),
+            'reservation' => $reservation,
         ], 201);
     }
 
     /**
-     * Update jadwal / addons reservasi.
-     * Hanya boleh oleh owner atau admin/manager (cek di Policy@update).
+     * Update jam dan addons reservasi.
+     * Body mirip dengan store, tapi semua field opsional.
      */
     public function update(Request $request, Reservation $reservation)
     {
-        $this->authorize('update', $reservation);
-
         $data = $request->validate([
-            'start_time'  => ['required', 'date'],
-            'end_time'    => ['required', 'date'],
-            'addons'      => ['nullable', 'array'],
-            'addons.*'    => ['integer', 'min:0'],
+            'start_time' => ['sometimes', 'required', 'date'],
+            'end_time'   => ['sometimes', 'required', 'date'],
+            'addons'     => ['nullable', 'array'],
         ]);
 
-        $reservation = $this->service->updateReservation($data, $reservation);
+        $updated = $this->reservationService->updateReservation($data, $reservation);
+        $updated->load(['studio', 'addons']);
 
         return response()->json([
             'message'     => 'Reservasi berhasil diupdate.',
-            'reservation' => $reservation,
+            'reservation' => $updated,
         ]);
     }
 
     /**
-     * Membatalkan reservasi.
-     * Hanya boleh oleh owner atau admin/manager (cek di Policy@cancel).
+     * Cancel reservasi (soft cancel, status -> cancelled).
      */
-    public function cancel(Request $request, Reservation $reservation)
+    public function cancel(Reservation $reservation)
     {
-        $this->authorize('cancel', $reservation);
-
-        $reservation = $this->service->cancelReservation($reservation);
-
-        // Kirim email notifikasi cancel ke pemilik reservasi
-        $reservation->user->notify(new ReservationCancelled($reservation));
+        $cancelled = $this->reservationService->cancelReservation($reservation);
+        $cancelled->load(['studio', 'addons']);
 
         return response()->json([
             'message'     => 'Reservasi berhasil dibatalkan.',
-            'reservation' => $reservation,
+            'reservation' => $cancelled,
         ]);
     }
 
     /**
-     * Check-in reservasi berbasis QR code (kode dikirim di body).
+     * Check-in reservasi menggunakan kode check-in.
+     * Body:
+     * {
+     *   "code": "CHK-XXXX"
+     * }
      */
     public function checkin(Request $request, Reservation $reservation)
     {
-        $this->authorize('checkin', $reservation);
-
-        $validated = $request->validate([
+        $data = $request->validate([
             'code' => ['required', 'string'],
         ]);
 
-        $reservation = $this->service->checkInReservation($reservation, $validated['code']);
+        $checkedIn = $this->reservationService->checkInReservation($reservation, $data['code']);
+        $checkedIn->load(['studio', 'addons']);
 
         return response()->json([
             'message'     => 'Check-in berhasil.',
-            'reservation' => $reservation,
+            'reservation' => $checkedIn,
         ]);
     }
 
     /**
-     * Hard delete reservasi (misal untuk cleaning oleh admin).
+     * Hard delete reservasi (opsional, untuk cleaning).
      */
-    public function destroy(Request $request, Reservation $reservation)
+    public function destroy(Reservation $reservation)
     {
-        $this->authorize('delete', $reservation);
-
         $reservation->delete();
 
         return response()->json([

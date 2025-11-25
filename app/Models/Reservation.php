@@ -40,9 +40,9 @@ class Reservation extends Model
 
     public function addons(): BelongsToMany
     {
-        // pivot table: reservation_addons (reservation_id, addon_id, quantity)
+        // pivot table: reservation_addons (reservation_id, addon_id, qty)
         return $this->belongsToMany(Addon::class, 'reservation_addons')
-            ->withPivot('quantity')
+            ->withPivot('qty')
             ->withTimestamps();
     }
 }

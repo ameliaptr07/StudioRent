@@ -14,24 +14,19 @@ class Studio extends Model
         'description',
         'capacity',
         'price_per_hour',
+        'location',
+        'assigned_manager_id',
         'status',
     ];
 
-    public function reservations()
-    {
-        return $this->hasMany(Reservation::class);
-    }
-
     public function addons()
     {
-        // pivot: studio_addons (studio_id, addon_id, dll.)
         return $this->belongsToMany(Addon::class, 'studio_addons')
             ->withTimestamps();
     }
 
     public function features()
     {
-        // pivot: studio_features (studio_id, feature_id, dll.)
         return $this->belongsToMany(Feature::class, 'studio_features')
             ->withTimestamps();
     }

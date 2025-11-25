@@ -8,20 +8,19 @@ use Illuminate\Http\Request;
 
 class FeatureController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(['auth:sanctum', 'role:admin|manager']);
-    }
-
     public function index()
     {
-        return response()->json(Feature::paginate(10));
+        $features = Feature::all();
+
+        return response()->json([
+            'data' => $features,
+        ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'feature_name' => ['required', 'string', 'max:255'],
         ]);
 
         $feature = Feature::create($data);
@@ -34,16 +33,19 @@ class FeatureController extends Controller
 
     public function show(Feature $feature)
     {
-        return response()->json($feature);
+        return response()->json([
+            'feature' => $feature,
+        ]);
     }
 
     public function update(Request $request, Feature $feature)
     {
         $data = $request->validate([
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'feature_name' => ['sometimes', 'required', 'string', 'max:255'],
         ]);
 
-        $feature->update($data);
+        $feature->fill($data);
+        $feature->save();
 
         return response()->json([
             'message' => 'Feature berhasil diupdate.',

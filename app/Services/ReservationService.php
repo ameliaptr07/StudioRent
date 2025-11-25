@@ -83,7 +83,7 @@ class ReservationService
 
     public function cancelReservation(Reservation $reservation): Reservation
     {
-        if (!in_array($reservation->status, ['pending', 'confirmed'], true)) {
+        if (! in_array($reservation->status, ['pending', 'confirmed'], true)) {
             throw ValidationException::withMessages([
                 'status' => 'Reservasi tidak bisa dibatalkan pada status ini.',
             ]);
@@ -222,7 +222,7 @@ class ReservationService
         $hours   = $minutes / 60;
         $total   = $studio->price_per_hour * $hours;
 
-        if (!empty($addons)) {
+        if (! empty($addons)) {
             $addonModels = $studio->addons()->whereIn('addons.id', array_keys($addons))->get();
 
             foreach ($addonModels as $addon) {
@@ -238,6 +238,8 @@ class ReservationService
 
     /**
      * Sinkronisasi addons ke pivot reservation_addons.
+     * --- PENTING ---
+     * Di database: kolomnya bernama `qty`, bukan `quantity`.
      */
     protected function syncAddons(Reservation $reservation, Studio $studio, array $addons): void
     {
@@ -249,9 +251,10 @@ class ReservationService
                 continue;
             }
 
-            // Opsional: pastikan addon memang tersedia di studio tersebut.
+            // Pastikan addon memang tersedia di studio tersebut.
             if ($studio->addons()->where('addons.id', $addonId)->exists()) {
-                $pivotData[$addonId] = ['quantity' => $qty];
+                // Sesuaikan dengan nama kolom pivot di DB: `qty`
+                $pivotData[$addonId] = ['qty' => $qty];
             }
         }
 
