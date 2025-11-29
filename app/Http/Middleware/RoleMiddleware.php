@@ -17,6 +17,7 @@ class RoleMiddleware
         $user = auth()->user();
         $roles = is_array($roles) ? $roles : [$roles];
 
+        // Periksa apakah role pengguna ada dan cocok dengan role yang diminta
         if (! $user->role || ! in_array($user->role->name, $roles)) {
             abort(403, 'Unauthorized');
         }

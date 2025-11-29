@@ -31,8 +31,8 @@ class Kernel extends HttpKernel
         ],
     ];
 
-    // Boleh kosongkan alias custom di sini kalau bikin pusing.
-    protected $middlewareAliases = [
+    // Daftarkan middleware custom 'role' di sini
+    protected $routeMiddleware = [
         'auth' => \App\Http\Middleware\Authenticate::class,
         'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
@@ -41,5 +41,9 @@ class Kernel extends HttpKernel
         'password.confirm' => \Illuminate\Auth\Middleware\RequirePassword::class,
         'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
         'can' => \Illuminate\Auth\Middleware\Authorize::class,
+        'manager' => \App\Http\Middleware\ManagerMiddleware::class,
+
+        // Daftarkan middleware role di sini
+        'role' => \App\Http\Middleware\RoleMiddleware::class,
     ];
 }

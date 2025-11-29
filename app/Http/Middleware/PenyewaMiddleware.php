@@ -10,7 +10,9 @@ class PenyewaMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check() || !auth()->user()->role || auth()->user()->role->name !== 'Penyewa') {
+        $role = $request->user()?->role?->name;
+
+        if (!in_array($role, ['User', 'Penyewa'], true)) {
             abort(403, 'Unauthorized');
         }
 
