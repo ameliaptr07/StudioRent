@@ -2,7 +2,7 @@
 
         <!-- Judul -->
     <div class="text-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">Selamat Datang di StudioRent</span></h1>
+        <h1 class="text-3xl font-bold text-gray-500">Selamat Datang di StudioRent</span></h1>
         <p class="text-gray-600 mt-1 text-sm">Silakan login untuk melanjutkan</p>
     </div>
 
