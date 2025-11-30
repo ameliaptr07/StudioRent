@@ -22,7 +22,7 @@ use App\Http\Controllers\Manager\ManagerController;  // Pastikan ini ada
 |-------------------------------------------------------------------------- 
 */
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('login');
 });
 
 /*

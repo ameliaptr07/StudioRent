@@ -164,6 +164,14 @@
                 </tbody>
             </table>
         </div>
+
+        {{-- Pagination --}}
+        <div class="mt-6">
+            <div class="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_20px_60px_-35px_rgba(0,0,0,0.8)]">
+                {{ $studios->links('pagination::tailwind') }}
+            </div>
+        </div>
+
     </div>
 </div>
 @endsection

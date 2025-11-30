@@ -75,8 +75,13 @@
                         @error('password') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                     </div>
 
-
-
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-200 mb-2">Konfirmasi Password</label>
+                        <input type="password" name="password_confirmation"
+                               class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-400
+                                      focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:border-indigo-400/40"
+                               placeholder="Konfirmasi Password" required>
+                    </div>
                 </div>
 
                 {{-- Right --}}

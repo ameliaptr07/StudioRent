@@ -14,7 +14,7 @@ class StudioAdminController extends Controller
 {
     public function index()
     {
-        $studios = Studio::orderBy('name')->paginate(20);
+        $studios = Studio::orderBy('name')->paginate(10);
         return view('admin.studios.index', compact('studios'));
     }
 
@@ -37,6 +37,8 @@ class StudioAdminController extends Controller
             'addons.*'       => 'exists:addons,id',
             'features'       => 'nullable|array',
             'features.*'     => 'exists:features,id',
+            'location'       => 'nullable|string|max:255',
+
 
             // ✅ image upload
             'image'          => ['nullable', 'image', 'mimes:jpg,jpeg', 'max:2048'],
@@ -48,6 +50,7 @@ class StudioAdminController extends Controller
         $studio->capacity = $validated['capacity'];
         $studio->price_per_hour = $validated['price_per_hour'];
         $studio->status = $validated['status'];
+        $studio->location = $validated['location'] ?? null;
         $studio->save();
 
         // ✅ sync addons/features (biar kalau kosong = detach)
@@ -88,6 +91,7 @@ class StudioAdminController extends Controller
             'addons.*'       => 'exists:addons,id',
             'features'       => 'nullable|array',
             'features.*'     => 'exists:features,id',
+            'location'       => 'nullable|string|max:255',
 
             // ✅ image upload
             'image'          => ['nullable', 'image', 'mimes:jpg,jpeg', 'max:2048'],
@@ -98,6 +102,7 @@ class StudioAdminController extends Controller
         $studio->capacity = $validated['capacity'];
         $studio->price_per_hour = $validated['price_per_hour'];
         $studio->status = $validated['status'];
+        $studio->location = $validated['location'] ?? null;
         $studio->save();
 
         $studio->addons()->sync($validated['addons'] ?? []);

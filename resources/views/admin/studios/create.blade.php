@@ -288,6 +288,13 @@
                     </div>
 
                     <div class="rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-500/15 via-white/5 to-transparent p-5 sm:p-6">
+                        <label class="block text-sm font-medium text-gray-300">Lokasi Studio</label>
+                        <input type="text" name="location" value="{{ old('location', $studio->location ?? '') }}"
+                        class="mt-1 block w-full rounded-lg border-gray-700 bg-gray-800 text-gray-200" />
+                    </div>
+
+
+                    <div class="rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-500/15 via-white/5 to-transparent p-5 sm:p-6">
                         <p class="text-sm text-slate-200 font-semibold">Checklist mini</p>
                         <ul class="mt-2 space-y-2 text-sm text-slate-300">
                             <li class="flex gap-2"><span class="text-slate-200">•</span> Nama studio jelas dan spesifik.</li>
